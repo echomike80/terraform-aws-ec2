@@ -61,20 +61,24 @@ module "applicationserver" {
 Mandatory input variables:
 ```
 ami = {
-  "eu-central-1" = "ami-0a6dc7529cd559185"
-  "eu-west-1"    = "ami-0fc970315c2d38f01"
-  "us-east-1"    = "ami-047a51fa27710816e"
+  "eu-central-1"    = "ami-0a6dc7529cd559185"
+  "eu-west-1"       = "ami-0fc970315c2d38f01"
+  "us-east-1"       = "ami-047a51fa27710816e"
 }
-instance_type = "t2.medium"
-region = "eu-central-1"
-ssh_pubkey = "ssh-rsa AAAAB3NzaC1.... ec2"
-type = "app"
-vpc_id = "vpc-......"
+instance_type       = "t2.medium"
+region              = "eu-central-1"
+ssh_pubkey          = "ssh-rsa AAAAB3NzaC1.... ec2"
+type                = "app"
+vpc_id              = "vpc-......"
 ```
 
 ## Notes
 
-1. Current issue: `cloudwatch_sns_topic_arn` can only be used after EC2 instance was provisioned by this module. So you need to run first without `cloudwatch_sns_topic_arn`.
+**CloudWatch alarms Issue:**
+The input variable `cloudwatch_sns_topic_arn` can only be used after EC2 instance was provisioned by this module. Otherwise you get the error message: "The "count" value depends on resource attributes that cannot be determined until apply, so Terraform cannot predict how many instances will be created. To work around this, use the -target argument to first apply only the resources that the count depends on."
+
+**Workaround:**
+Run `terraform apply` initially without defining an input value for `cloudwatch_sns_topic_arn`
 
 ## Requirements
 
