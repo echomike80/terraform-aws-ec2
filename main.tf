@@ -1,22 +1,124 @@
+########
+# Locals
+########
 locals {
   is_t_instance_type = replace(var.instance_type, "/^t(2|3|3a){1}\\..*$/", "1") == "1" ? true : false
 }
 
-resource "aws_instance" "this" {
-  count = var.instance_count
+#################
+# Security Groups
+#################
+resource "aws_security_group" "ec2" {
+  name        = format("%s-%s", var.name, var.type)
+  description = "Rules for ${var.type} server"
+  vpc_id      = var.vpc_id
 
-  ami              = var.ami
+  tags = merge(
+    {
+      Name = format("%s-%s", var.name, var.type)
+    },
+    var.tags,
+  )
+}
+
+resource "aws_security_group_rule" "in-each-port-ec2-from-cidr" {
+  for_each                  = var.sg_rules_ingress_cidr_map
+  type                      = "ingress"
+  from_port                 = each.value.port
+  to_port                   = each.value.port
+  protocol                  = "tcp"
+  cidr_blocks               = [each.value.cidr_block]
+  security_group_id         = aws_security_group.ec2.id
+}
+
+resource "aws_security_group_rule" "out-each-port-ec2-to-cidr" {
+  for_each                  = var.sg_rules_egress_cidr_map
+  type                      = "egress"
+  from_port                 = each.value.port
+  to_port                   = each.value.port
+  protocol                  = "tcp"
+  cidr_blocks               = [each.value.cidr_block]
+  security_group_id         = aws_security_group.ec2.id
+}
+
+resource "aws_security_group_rule" "in-each-port-ec2-from-source_sg_id" {
+  for_each                  = var.sg_rules_ingress_source_sg_map
+  type                      = "ingress"
+  from_port                 = each.value.port
+  to_port                   = each.value.port
+  protocol                  = "tcp"
+  source_security_group_id  = each.value.source_sg_id
+  security_group_id         = aws_security_group.ec2.id
+}
+
+resource "aws_security_group_rule" "out-each-port-ec2-to-source_sg_id" {
+  for_each                  = var.sg_rules_egress_source_sg_map
+  type                      = "egress"
+  from_port                 = each.value.port
+  to_port                   = each.value.port
+  protocol                  = "tcp"
+  source_security_group_id  = each.value.source_sg_id
+  security_group_id         = aws_security_group.ec2.id
+}
+
+resource "aws_security_group_rule" "out-any-ec2-to-vpc" {
+  count                     = var.enable_any_egress_to_vpc ? 1 : 0
+  type                      = "egress"
+  from_port                 = 0
+  to_port                   = 65535
+  protocol                  = "tcp"
+  cidr_blocks               = [var.vpc_cidr]
+  security_group_id         = aws_security_group.ec2.id
+}
+
+# This security group will be attached to RDS and not to EC2!
+resource "aws_security_group" "database-from-ec2" {
+  count                     = var.sg_rule_rds_port != null ? 1 : 0
+  name                      = format("%s-db-from-%s", var.name, var.type)
+  description               = format("Rules for database from %s server", var.type)
+  vpc_id                    = var.vpc_id
+
+  ingress {
+    from_port       = var.sg_rule_rds_port
+    to_port         = var.sg_rule_rds_port
+    protocol        = "tcp"
+    security_groups = [aws_security_group.ec2.id]
+  }
+
+  tags = merge(
+    {
+      Name = format("%s-db-from-%s", var.name, var.type)
+    },
+    var.tags,
+  )
+}
+
+###########
+# Key Pairs
+###########
+resource "aws_key_pair" "ec2" {
+  key_name   = format("%s-%s", var.name, var.type)
+  public_key = var.ssh_pubkey
+}
+
+###############
+# EC2 instances
+###############
+resource "aws_instance" "ec2" {
+  count                       = var.instance_count
+
+  ami              = lookup(var.ami, var.region)
   instance_type    = var.instance_type
   user_data        = var.user_data
   user_data_base64 = var.user_data_base64
   subnet_id = length(var.network_interface) > 0 ? null : element(
-    distinct(compact(concat([var.subnet_id], var.subnet_ids))),
+    distinct(compact(tolist(var.subnet_ids))),
     count.index,
   )
-  key_name               = var.key_name
+  key_name               = aws_key_pair.ec2.id
   monitoring             = var.monitoring
   get_password_data      = var.get_password_data
-  vpc_security_group_ids = var.vpc_security_group_ids
+  vpc_security_group_ids = [aws_security_group.ec2.id]
   iam_instance_profile   = var.iam_instance_profile
 
   associate_public_ip_address = var.associate_public_ip_address
@@ -87,19 +189,87 @@ resource "aws_instance" "this" {
 
   tags = merge(
     {
-      "Name" = var.instance_count > 1 || var.use_num_suffix ? format("%s${var.num_suffix_format}", var.name, count.index + 1) : var.name
+      "Name" = format("%s-%s%s", var.name, var.type, count.index + 1)
     },
     var.tags,
   )
 
   volume_tags = merge(
     {
-      "Name" = var.instance_count > 1 || var.use_num_suffix ? format("%s${var.num_suffix_format}", var.name, count.index + 1) : var.name
+      "Name" = format("%s-%s%s", var.name, var.type, count.index + 1)
     },
     var.volume_tags,
   )
 
   credit_specification {
     cpu_credits = local.is_t_instance_type ? var.cpu_credits : null
+  }
+
+  lifecycle {
+    ignore_changes = [user_data]
+  }
+}
+
+##################
+# EIP associations
+##################
+resource "aws_eip_association" "ec2" {
+  count         = var.eip_alloc_ids != null ? length(var.eip_alloc_ids) :0
+  instance_id   = aws_instance.ec2[count.index].id
+  allocation_id = var.eip_alloc_ids[count.index]
+}
+
+##################
+# CloudWatch Alarm
+##################
+resource "aws_cloudwatch_metric_alarm" "ec2-autorecover" {
+  count                     = var.cloudwatch_autorecover_enabled && var.cloudwatch_sns_topic_arn == null ? var.instance_count : 0
+  alarm_name                = format("%s-%s%s-autorecover", var.name, var.type, count.index + 1)
+  namespace                 = "AWS/EC2"
+  evaluation_periods        = "2"
+  period                    = "60"
+  alarm_description         = "Recover server ${var.name}-${var.type}${count.index + 1} when underlying hardware fails."
+  alarm_actions             = ["arn:aws:automate:${var.region}:ec2:recover"]
+  statistic                 = "Minimum"
+  comparison_operator       = "GreaterThanThreshold"
+  threshold                 = "0"
+  metric_name               = "StatusCheckFailed_System"
+  dimensions = {
+    InstanceId = element(aws_instance.ec2.*.id, count.index)
+  }
+}
+
+resource "aws_cloudwatch_metric_alarm" "ec2-autorecover-and-notify" {
+  count                     = var.cloudwatch_autorecover_enabled && var.cloudwatch_sns_topic_arn != null ? var.instance_count : 0
+  alarm_name                = format("%s-%s%s-autorecover-and-notify", var.name, var.type, count.index + 1)
+  namespace                 = "AWS/EC2"
+  evaluation_periods        = "2"
+  period                    = "60"
+  alarm_description         = "Recover server ${var.name}-${var.type}${count.index + 1} when underlying hardware fails."
+  alarm_actions             = ["arn:aws:automate:${var.region}:ec2:recover", var.cloudwatch_sns_topic_arn]
+  statistic                 = "Minimum"
+  comparison_operator       = "GreaterThanThreshold"
+  threshold                 = "0"
+  metric_name               = "StatusCheckFailed_System"
+  dimensions = {
+    InstanceId = element(aws_instance.ec2.*.id, count.index)
+  }
+}
+
+resource "aws_cloudwatch_metric_alarm" "ec2-cpu-utilization-notify" {
+  count                     = var.cloudwatch_cpu_utilization_enabled && var.cloudwatch_sns_topic_arn != null ? var.instance_count : 0
+  alarm_name                = format("%s-%s%s-cpu-utilization", var.name, var.type, count.index + 1)
+  namespace                 = "AWS/EC2"
+  evaluation_periods        = "2"
+  period                    = "120"
+  alarm_description         = "This metric monitors ec2 cpu utilization"
+  alarm_actions             = [var.cloudwatch_sns_topic_arn]
+  ok_actions                = [var.cloudwatch_sns_topic_arn]
+  statistic                 = "Average"
+  comparison_operator       = "GreaterThanOrEqualToThreshold"
+  threshold                 = "80"
+  metric_name               = "CPUUtilization"
+  dimensions = {
+    InstanceId = element(aws_instance.ec2.*.id, count.index)
   }
 }

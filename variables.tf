@@ -11,7 +11,7 @@ variable "instance_count" {
 
 variable "ami" {
   description = "ID of AMI to use for the instance"
-  type        = string
+  type        = map
 }
 
 variable "placement_group" {
@@ -53,12 +53,6 @@ variable "instance_initiated_shutdown_behavior" {
 variable "instance_type" {
   description = "The type of instance to start"
   type        = string
-}
-
-variable "key_name" {
-  description = "The key name to use for the instance"
-  type        = string
-  default     = ""
 }
 
 variable "monitoring" {
@@ -116,7 +110,7 @@ variable "user_data" {
 }
 
 variable "user_data_base64" {
-  description = "Can be used instead of user_data to pass base64-encoded binary data directly. Use this instead of user_data whenever the value is not a valid UTF-8 string. For example, gzip-encoded user data must be base64-encoded and passed via this argument to avoid corruption."
+  description = "Can be used instead of user_data to pass base64-encoded binary data directly."
   type        = string
   default     = null
 }
@@ -197,4 +191,90 @@ variable "num_suffix_format" {
   description = "Numerical suffix format used as the volume and EC2 instance name suffix"
   type        = string
   default     = "-%d"
+}
+
+variable "type" {
+  description = "Type of the application server"
+  type        = string
+}
+
+variable "region" {
+  description = "Name of region"
+  type        = string
+}
+
+variable "vpc_id" {
+  description = "String of vpc id"
+  type        = string
+}
+
+variable "vpc_cidr" {
+  description = "VPC cidr for security group rules"
+  type        = string
+  default     = "10.0.0.0/16"
+}
+
+variable "ssh_pubkey" {
+  description = "SSH Public Key"
+  type        = string
+}
+
+variable "eip_alloc_ids" {
+  description = "List of Elastic IP associations for the EC2 instance"
+  type        = list(string)
+  default     = null
+}
+
+variable "enable_any_egress_to_vpc" {
+  description = "Enable any egress traffic from EC2 instance to VPC"
+  type        = bool
+  default     = true
+}
+
+variable "sg_rule_rds_port" {
+  description = "Port for ingress security group rules to RDS"
+  type        = number
+  default     = null
+}
+
+variable "sg_rules_egress_cidr_map" {
+  description = "Map of security group rules for egress communication of cidr"
+  type        = map
+  default     = {}
+}
+
+variable "sg_rules_ingress_cidr_map" {
+  description = "Map of security group rules for ingress communication of cidr"
+  type        = map
+  default     = {}
+}
+
+variable "sg_rules_egress_source_sg_map" {
+  description = "Map of security group rules for egress communication of security group source ids"
+  type        = map
+  default     = {}
+}
+
+variable "sg_rules_ingress_source_sg_map" {
+  description = "Map of security group rules for ingress communication of security group source ids"
+  type        = map
+  default     = {}
+}
+
+variable "cloudwatch_sns_topic_arn" {
+  description = "SNS Topic ARN for CloudWatch alarms"
+  type        = string
+  default     = null
+}
+
+variable "cloudwatch_autorecover_enabled" {
+  description = "Enable or disable CloudWatch alarm EC2 autorecover"
+  type        = bool
+  default     = true
+}
+
+variable "cloudwatch_cpu_utilization_enabled" {
+  description = "Enable or disable CloudWatch alarm CPU utilization"
+  type        = bool
+  default     = false
 }

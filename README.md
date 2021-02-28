@@ -1,130 +1,109 @@
-# AWS EC2 Instance Terraform module
+# AWS EC2 Terraform module
 
-Terraform module which creates EC2 instance(s) on AWS.
-
-These types of resources are supported:
-
-* [EC2 instance](https://www.terraform.io/docs/providers/aws/r/instance.html)
+Terraform module which creates EC2 resources with security groups, key pair, EIP associations and CloudWatch alarms on AWS.
 
 ## Terraform versions
 
-Terraform 0.12. Pin module version to `~> v2.0`. Submit pull-requests to `master` branch.
-
-Terraform 0.11. Pin module version to `~> v1.0`. Submit pull-requests to `terraform011` branch.
+Terraform 0.12 and newer. 
 
 ## Usage
 
 ```hcl
-module "ec2_cluster" {
-  source                 = "terraform-aws-modules/ec2-instance/aws"
-  version                = "~> 2.0"
+module "applicationserver" {
+  source                            = "/path/to/module/terraform-aws-ec2"
+  name                              = var.name
+  type                              = "app"
+  region                            = var.region
+  vpc_cidr                          = var.vpc_cidr
+  vpc_id                            = var.vpc_id
+  subnet_ids                        = var.subnet_ids
 
-  name                   = "my-cluster"
-  instance_count         = 5
+  sg_rules_egress_cidr_map          = {
+    internet_http = {
+      port          = 80
+      cidr_block    = "0.0.0.0/0"
+    }
+    internet_https = {
+      port          = 443
+      cidr_block    = "0.0.0.0/0"
+    }
+  }
+  sg_rules_ingress_cidr_map         = {
+    vpn_ssh = {
+      port          = 22
+      cidr_block    = "192.168.178.0/24"
+    }
+  }
+  sg_rules_ingress_source_sg_map    = {
+    webserver_http = {
+      port          = 8080
+      source_sg_id  = "sg-........."
+    }
+  }
 
-  ami                    = "ami-ebd02392"
-  instance_type          = "t2.micro"
-  key_name               = "user1"
-  monitoring             = true
-  vpc_security_group_ids = ["sg-12345678"]
-  subnet_id              = "subnet-eddcdzz4"
+  ami                               = var.app_ami
+  instance_count                    = var.app_instance_count
+  instance_type                     = var.app_instance_type
+  iam_instance_profile              = var.app_iam_instance_profile
+  ssh_pubkey                        = var.app_ssh_pubkey
+  root_block_device                 = var.app_root_block_device
+  ebs_block_device                  = var.app_ebs_block_device
+  sg_rule_rds_port                  = var.app_sg_rule_rds_port
 
   tags = {
-    Terraform   = "true"
-    Environment = "dev"
+    Environment = var.environment,
+    Project     = var.project,
+    Tier        = var.app_tier
   }
 }
 ```
 
-## Examples
-
-* [Basic EC2 instance](https://github.com/terraform-aws-modules/terraform-aws-ec2-instance/tree/master/examples/basic)
-* [EC2 instance with EBS volume attachment](https://github.com/terraform-aws-modules/terraform-aws-ec2-instance/tree/master/examples/volume-attachment)
-
-## Make an encrypted AMI for use
-
-This module does not support encrypted AMI's out of the box however it is easy enough for you to generate one for use
-
-This example creates an encrypted image from the latest ubuntu 16.04 base image.
-
-
-```hcl
-resource "aws_ami_copy" "ubuntu-xenial-encrypted-ami" {
-  name              = "ubuntu-xenial-encrypted-ami"
-  description       = "An encrypted root ami based off ${data.aws_ami.ubuntu-xenial.id}"
-  source_ami_id     = "${data.aws_ami.ubuntu-xenial.id}"
-  source_ami_region = "eu-west-2"
-  encrypted         = "true"
-
-  tags {
-    Name = "ubuntu-xenial-encrypted-ami"
-  }
-}
-
-data "aws_ami" "encrypted-ami" {
-  most_recent = true
-
-  filter {
-    name   = "name"
-    values = ["ubuntu-xenial-encrypted"]
-  }
-
-  owners = ["self"]
-}
-
-data "aws_ami" "ubuntu-xenial" {
-  most_recent = true
-
-  filter {
-    name   = "name"
-    values = ["ubuntu/images/hvm-ssd/ubuntu-xenial-16.04-amd64-server-*"]
-  }
-
-  owners      = ["099720109477"]
-}
+Mandatory input variables:
 ```
-
+ami = {
+  "eu-central-1" = "ami-0a6dc7529cd559185"
+  "eu-west-1"    = "ami-0fc970315c2d38f01"
+  "us-east-1"    = "ami-047a51fa27710816e"
+}
+instance_type = "t2.medium"
+region = "eu-central-1"
+ssh_pubkey = "ssh-rsa AAAAB3NzaC1.... ec2"
+type = "app"
+vpc_id = "vpc-......"
+```
 
 ## Notes
 
-* `network_interface` can't be specified together with `vpc_security_group_ids`, `associate_public_ip_address`, `subnet_id`. See [basic example](https://github.com/terraform-aws-modules/terraform-aws-ec2-instance/tree/master/examples/basic) for details. 
-* Changes in `ebs_block_device` argument will be ignored. Use [aws_volume_attachment](https://www.terraform.io/docs/providers/aws/r/volume_attachment.html) resource to attach and detach volumes from AWS EC2 instances. See [this example](https://github.com/terraform-aws-modules/terraform-aws-ec2-instance/tree/master/examples/volume-attachment).
-* One of `subnet_id` or `subnet_ids` is required. If both are provided, the value of `subnet_id` is prepended to the value of `subnet_ids`.
+1. Current issue: `cloudwatch_sns_topic_arn` can only be used after EC2 instance was provisioned by this module. So you need to run first without `cloudwatch_sns_topic_arn`.
 
-<!-- BEGINNING OF PRE-COMMIT-TERRAFORM DOCS HOOK -->
 ## Requirements
 
-| Name | Version |
-|------|---------|
+| Name | Version |       
+|------|---------|       
 | terraform | >= 0.12.6 |
-| aws | >= 2.65 |
+| aws | >= 2.65 |        
 
 ## Providers
 
-| Name | Version |
-|------|---------|
-| aws | >= 2.65 |
-
-## Modules
-
-No Modules.
-
-## Resources
-
-| Name |
-|------|
-| [aws_instance](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/instance) |
+| Name | Version |       
+|------|---------|       
+| aws | >= 2.65 |        
 
 ## Inputs
 
 | Name | Description | Type | Default | Required |
 |------|-------------|------|---------|:--------:|
-| ami | ID of AMI to use for the instance | `string` | n/a | yes |
+| ami | ID of AMI to use for the instance | `map` | n/a | yes |
 | associate\_public\_ip\_address | If true, the EC2 instance will have associated public IP address | `bool` | `null` | no |
+| cloudwatch\_autorecover\_enabled | Enable or disable CloudWatch alarm EC2 autorecover | `bool` | `true` | no |
+| cloudwatch\_cpu\_utilization\_enabled | Enable or disable CloudWatch alarm CPU utilization | `bool` | `false` | no |
+| cloudwatch\_sns\_topic\_arn | SNS Topic ARN for CloudWatch alarms | `string` | `null` | no |
 | cpu\_credits | The credit option for CPU usage (unlimited or standard) | `string` | `"standard"` | no |
 | disable\_api\_termination | If true, enables EC2 Instance Termination Protection | `bool` | `false` | no |
 | ebs\_block\_device | Additional EBS block devices to attach to the instance | `list(map(string))` | `[]` | no |
 | ebs\_optimized | If true, the launched EC2 instance will be EBS-optimized | `bool` | `false` | no |
+| eip\_alloc\_ids | List of Elastic IP associations for the EC2 instance | `list(string)` | `null` | no |
+| enable\_any\_egress\_to\_vpc | Enable any egress traffic from EC2 instance to VPC | `bool` | `true` | no |
 | ephemeral\_block\_device | Customize Ephemeral (also known as Instance Store) volumes on the instance | `list(map(string))` | `[]` | no |
 | get\_password\_data | If true, wait for password data to become available and retrieve it. | `bool` | `false` | no |
 | iam\_instance\_profile | The IAM Instance Profile to launch the instance with. Specified as the name of the Instance Profile. | `string` | `""` | no |
@@ -133,7 +112,6 @@ No Modules.
 | instance\_type | The type of instance to start | `string` | n/a | yes |
 | ipv6\_address\_count | A number of IPv6 addresses to associate with the primary network interface. Amazon EC2 chooses the IPv6 addresses from the range of your subnet. | `number` | `null` | no |
 | ipv6\_addresses | Specify one or more IPv6 addresses from the range of the subnet to associate with the primary network interface | `list(string)` | `null` | no |
-| key\_name | The key name to use for the instance | `string` | `""` | no |
 | metadata\_options | Customize the metadata options of the instance | `map(string)` | `{}` | no |
 | monitoring | If true, the launched EC2 instance will have detailed monitoring enabled | `bool` | `false` | no |
 | name | Name to be used on all resources as prefix | `string` | n/a | yes |
@@ -142,16 +120,26 @@ No Modules.
 | placement\_group | The Placement Group to start the instance in | `string` | `""` | no |
 | private\_ip | Private IP address to associate with the instance in a VPC | `string` | `null` | no |
 | private\_ips | A list of private IP address to associate with the instance in a VPC. Should match the number of instances. | `list(string)` | `[]` | no |
+| region | Name of region | `string` | n/a | yes |
 | root\_block\_device | Customize details about the root block device of the instance. See Block Devices below for details | `list(map(string))` | `[]` | no |
+| sg\_rule\_rds\_port | Port for ingress security group rules to RDS | `number` | `null` | no |
+| sg\_rules\_egress\_cidr\_map | Map of security group rules for egress communication of cidr | `map` | `{}` | no |
+| sg\_rules\_egress\_source\_sg\_map | Map of security group rules for egress communication of security group source ids | `map` | `{}` | no |
+| sg\_rules\_ingress\_cidr\_map | Map of security group rules for ingress communication of cidr | `map` | `{}` | no |
+| sg\_rules\_ingress\_source\_sg\_map | Map of security group rules for ingress communication of security group source ids | `map` | `{}` | no |
 | source\_dest\_check | Controls if traffic is routed to the instance when the destination address does not match the instance. Used for NAT or VPNs. | `bool` | `true` | no |
+| ssh\_pubkey | SSH Public Key | `string` | n/a | yes |
 | subnet\_id | The VPC Subnet ID to launch in | `string` | `""` | no |
 | subnet\_ids | A list of VPC Subnet IDs to launch in | `list(string)` | `[]` | no |
 | tags | A mapping of tags to assign to the resource | `map(string)` | `{}` | no |
 | tenancy | The tenancy of the instance (if the instance is running in a VPC). Available values: default, dedicated, host. | `string` | `"default"` | no |
+| type | Type of the application server | `string` | n/a | yes |
 | use\_num\_suffix | Always append numerical suffix to instance name, even if instance\_count is 1 | `bool` | `false` | no |
 | user\_data | The user data to provide when launching the instance. Do not pass gzip-compressed data via this argument; see user\_data\_base64 instead. | `string` | `null` | no |
-| user\_data\_base64 | Can be used instead of user\_data to pass base64-encoded binary data directly. Use this instead of user\_data whenever the value is not a valid UTF-8 string. For example, gzip-encoded user data must be base64-encoded and passed via this argument to avoid corruption. | `string` | `null` | no |
+| user\_data\_base64 | Can be used instead of user\_data to pass base64-encoded binary data directly. | `string` | `null` | no |
 | volume\_tags | A mapping of tags to assign to the devices created by the instance at launch time | `map(string)` | `{}` | no |
+| vpc\_cidr | VPC cidr for security group rules | `string` | `"10.0.0.0/16"` | no |
+| vpc\_id | String of vpc id | `string` | n/a | yes |
 | vpc\_security\_group\_ids | A list of security group IDs to associate with | `list(string)` | `null` | no |
 
 ## Outputs
@@ -176,16 +164,18 @@ No Modules.
 | public\_dns | List of public DNS names assigned to the instances. For EC2-VPC, this is only available if you've enabled DNS hostnames for your VPC |
 | public\_ip | List of public IP addresses assigned to the instances, if applicable |
 | root\_block\_device\_volume\_ids | List of volume IDs of root block devices of instances |
+| security\_group\_id\_database\_from\_ec2 | ID of security group to use for the RDS that allows incoming connections from the application server |
+| security\_group\_id\_ec2 | ID of security group to use for the application server |
 | security\_groups | List of associated security groups of instances |
 | subnet\_id | List of IDs of VPC subnets of instances |
 | tags | List of tags of instances |
 | volume\_tags | List of tags of volumes of instances |
 | vpc\_security\_group\_ids | List of associated security groups of instances, if running in non-default VPC |
-<!-- END OF PRE-COMMIT-TERRAFORM DOCS HOOK -->
 
 ## Authors
 
-Module managed by [Anton Babenko](https://github.com/antonbabenko).
+Module managed by [Marcel Emmert](https://github.com/echomike80).
+Module based on AWS EC2 instance module created by [Anton Babenko](https://github.com/terraform-aws-modules/terraform-aws-ec2-instance).
 
 ## License
 

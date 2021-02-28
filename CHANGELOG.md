@@ -5,12 +5,7 @@ All notable changes to this project will be documented in this file.
 <a name="unreleased"></a>
 ## [Unreleased]
 
-
-
-<a name="v2.17.0"></a>
-## [v2.17.0] - 2021-02-20
-
-- chore: update documentation based on latest `terraform-docs` which includes module and resource sections ([#200](https://github.com/terraform-aws-modules/terraform-aws-ec2-instance/issues/200))
+- feat: Add security groups, key pair, EIP associations and CloudWatch alarms
 
 
 <a name="v2.16.0"></a>
@@ -337,8 +332,7 @@ All notable changes to this project will be documented in this file.
 - Initial commit
 
 
-[Unreleased]: https://github.com/terraform-aws-modules/terraform-aws-ec2-instance/compare/v2.17.0...HEAD
-[v2.17.0]: https://github.com/terraform-aws-modules/terraform-aws-ec2-instance/compare/v2.16.0...v2.17.0
+[Unreleased]: https://github.com/terraform-aws-modules/terraform-aws-ec2-instance/compare/v2.16.0...HEAD
 [v2.16.0]: https://github.com/terraform-aws-modules/terraform-aws-ec2-instance/compare/v2.15.0...v2.16.0
 [v2.15.0]: https://github.com/terraform-aws-modules/terraform-aws-ec2-instance/compare/v2.14.0...v2.15.0
 [v2.14.0]: https://github.com/terraform-aws-modules/terraform-aws-ec2-instance/compare/v1.25.0...v2.14.0
