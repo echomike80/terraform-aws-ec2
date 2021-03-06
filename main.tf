@@ -9,13 +9,13 @@ locals {
 # Security Groups
 #################
 resource "aws_security_group" "ec2" {
-  name        = format("%s-%s", var.name, var.type)
-  description = "Rules for ${var.type} server"
+  name        = var.name
+  description = "Rules for ${var.name}"
   vpc_id      = var.vpc_id
 
   tags = merge(
     {
-      Name = format("%s-%s", var.name, var.type)
+      Name = var.name
     },
     var.tags,
   )
@@ -72,10 +72,10 @@ resource "aws_security_group_rule" "out-any-ec2-to-vpc" {
 }
 
 # This security group will be attached to RDS and not to EC2!
-resource "aws_security_group" "database-from-ec2" {
+resource "aws_security_group" "ec2-to-database" {
   count                     = var.sg_rule_rds_port != null ? 1 : 0
-  name                      = format("%s-db-from-%s", var.name, var.type)
-  description               = format("Rules for database from %s server", var.type)
+  name                      = format("%s-to-db", var.name)
+  description               = format("Rules for %s to database", var.name)
   vpc_id                    = var.vpc_id
 
   ingress {
@@ -87,7 +87,7 @@ resource "aws_security_group" "database-from-ec2" {
 
   tags = merge(
     {
-      Name = format("%s-db-from-%s", var.name, var.type)
+      Name = format("%s-to-db", var.name)
     },
     var.tags,
   )
@@ -97,7 +97,7 @@ resource "aws_security_group" "database-from-ec2" {
 # Key Pairs
 ###########
 resource "aws_key_pair" "ec2" {
-  key_name   = format("%s-%s", var.name, var.type)
+  key_name   = var.name
   public_key = var.ssh_pubkey
 }
 
@@ -189,14 +189,14 @@ resource "aws_instance" "ec2" {
 
   tags = merge(
     {
-      "Name" = format("%s-%s%s", var.name, var.type, count.index + 1)
+      "Name" = format("%s-%s", var.name, count.index + 1)
     },
     var.tags,
   )
 
   volume_tags = merge(
     {
-      "Name" = format("%s-%s%s", var.name, var.type, count.index + 1)
+      "Name" = format("%s-%s", var.name, count.index + 1)
     },
     var.volume_tags,
   )
@@ -224,11 +224,11 @@ resource "aws_eip_association" "ec2" {
 ##################
 resource "aws_cloudwatch_metric_alarm" "ec2-autorecover" {
   count                     = var.cloudwatch_autorecover_enabled && var.cloudwatch_sns_topic_arn == null ? var.instance_count : 0
-  alarm_name                = format("%s-%s%s-autorecover", var.name, var.type, count.index + 1)
+  alarm_name                = format("%s-%s-autorecover", var.name, count.index + 1)
   namespace                 = "AWS/EC2"
   evaluation_periods        = "2"
   period                    = "60"
-  alarm_description         = "Recover server ${var.name}-${var.type}${count.index + 1} when underlying hardware fails."
+  alarm_description         = format("Recover server %s-%s when underlying hardware fails.", var.name, count.index + 1)
   alarm_actions             = ["arn:aws:automate:${var.region}:ec2:recover"]
   statistic                 = "Minimum"
   comparison_operator       = "GreaterThanThreshold"
@@ -241,11 +241,11 @@ resource "aws_cloudwatch_metric_alarm" "ec2-autorecover" {
 
 resource "aws_cloudwatch_metric_alarm" "ec2-autorecover-and-notify" {
   count                     = var.cloudwatch_autorecover_enabled && var.cloudwatch_sns_topic_arn != null ? var.instance_count : 0
-  alarm_name                = format("%s-%s%s-autorecover-and-notify", var.name, var.type, count.index + 1)
+  alarm_name                = format("%s-%s-autorecover-and-notify", var.name, count.index + 1)
   namespace                 = "AWS/EC2"
   evaluation_periods        = "2"
   period                    = "60"
-  alarm_description         = "Recover server ${var.name}-${var.type}${count.index + 1} when underlying hardware fails."
+  alarm_description         = format("Recover server %s-%s when underlying hardware fails.", var.name, count.index + 1)
   alarm_actions             = ["arn:aws:automate:${var.region}:ec2:recover", var.cloudwatch_sns_topic_arn]
   statistic                 = "Minimum"
   comparison_operator       = "GreaterThanThreshold"
@@ -258,7 +258,7 @@ resource "aws_cloudwatch_metric_alarm" "ec2-autorecover-and-notify" {
 
 resource "aws_cloudwatch_metric_alarm" "ec2-cpu-utilization-notify" {
   count                     = var.cloudwatch_cpu_utilization_enabled && var.cloudwatch_sns_topic_arn != null ? var.instance_count : 0
-  alarm_name                = format("%s-%s%s-cpu-utilization", var.name, var.type, count.index + 1)
+  alarm_name                = format("%s-%s-cpu-utilization", var.name, count.index + 1)
   namespace                 = "AWS/EC2"
   evaluation_periods        = "2"
   period                    = "120"

@@ -123,5 +123,5 @@ output "security_group_id_ec2" {
 
 output "security_group_id_database_from_ec2" {
   description = "ID of security group to use for the RDS that allows incoming connections from the application server"
-  value = aws_security_group.database-from-ec2.*.id
+  value = aws_security_group.ec2-to-database.*.id
 }

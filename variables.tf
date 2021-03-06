@@ -193,11 +193,6 @@ variable "num_suffix_format" {
   default     = "-%d"
 }
 
-variable "type" {
-  description = "Type of the application server"
-  type        = string
-}
-
 variable "region" {
   description = "Name of region"
   type        = string

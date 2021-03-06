@@ -12,7 +12,6 @@ Terraform 0.12 and newer.
 module "applicationserver" {
   source                            = "/path/to/module/terraform-aws-ec2"
   name                              = var.name
-  type                              = "app"
   region                            = var.region
   vpc_cidr                          = var.vpc_cidr
   vpc_id                            = var.vpc_id
@@ -65,10 +64,9 @@ ami = {
   "eu-west-1"       = "ami-0fc970315c2d38f01"
   "us-east-1"       = "ami-047a51fa27710816e"
 }
-instance_type       = "t2.medium"
+instance_type       = "t3.medium"
 region              = "eu-central-1"
 ssh_pubkey          = "ssh-rsa AAAAB3NzaC1.... ec2"
-type                = "app"
 vpc_id              = "vpc-......"
 ```
 
@@ -137,7 +135,6 @@ Run `terraform apply` initially without defining an input value for `cloudwatch_
 | subnet\_ids | A list of VPC Subnet IDs to launch in | `list(string)` | `[]` | no |
 | tags | A mapping of tags to assign to the resource | `map(string)` | `{}` | no |
 | tenancy | The tenancy of the instance (if the instance is running in a VPC). Available values: default, dedicated, host. | `string` | `"default"` | no |
-| type | Type of the application server | `string` | n/a | yes |
 | use\_num\_suffix | Always append numerical suffix to instance name, even if instance\_count is 1 | `bool` | `false` | no |
 | user\_data | The user data to provide when launching the instance. Do not pass gzip-compressed data via this argument; see user\_data\_base64 instead. | `string` | `null` | no |
 | user\_data\_base64 | Can be used instead of user\_data to pass base64-encoded binary data directly. | `string` | `null` | no |
