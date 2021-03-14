@@ -192,6 +192,7 @@ resource "aws_instance" "ec2" {
       "Name" = format("%s-%s", var.name, count.index + 1)
     },
     var.tags,
+    var.backup_tags,
   )
 
   volume_tags = merge(
@@ -199,6 +200,7 @@ resource "aws_instance" "ec2" {
       "Name" = format("%s-%s", var.name, count.index + 1)
     },
     var.volume_tags,
+    var.backup_tags,
   )
 
   credit_specification {
@@ -271,5 +273,78 @@ resource "aws_cloudwatch_metric_alarm" "ec2-cpu-utilization-notify" {
   metric_name               = "CPUUtilization"
   dimensions = {
     InstanceId = element(aws_instance.ec2.*.id, count.index)
+  }
+}
+
+#######################
+# Backup vault and plan
+#######################
+resource "aws_backup_vault" "ec2" {
+  count         = var.backup_enabled ? var.instance_count : 0
+  name          = format("%s-%s-backup-vault", var.name, count.index + 1)
+  kms_key_arn   = var.backup_vault_kms_key_arn
+}
+
+resource "aws_backup_plan" "ec2" {
+  count         = var.backup_enabled ? var.instance_count : 0
+  name          = format("%s-%s-backup-plan", var.name, count.index + 1)
+
+  rule {
+    rule_name         = format("%s-%s-backup-rule", var.name, count.index + 1)
+    target_vault_name = aws_backup_vault.ec2[count.index].name
+    schedule          = var.backup_plan_schedule
+  }
+
+  advanced_backup_setting {
+    backup_options = {
+      WindowsVSS = var.backup_plan_windows_vss
+    }
+    resource_type = "EC2"
+  }
+}
+
+resource "aws_iam_role" "ec2_backup" {
+  count                 = var.backup_enabled ? var.instance_count : 0
+  name                  = format("%s-ec2-role", var.name)
+
+  assume_role_policy    = <<EOF
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Action": "sts:AssumeRole",
+      "Principal": {
+        "Service": "backup.amazonaws.com"
+      },
+      "Effect": "Allow",
+      "Sid": ""
+    }
+  ]
+}
+EOF
+}
+
+resource "aws_iam_role_policy_attachment" "ec2_backup_backup" {
+  count         = var.backup_enabled ? var.instance_count : 0
+  role          = aws_iam_role.ec2_backup[count.index].name
+  policy_arn    = "arn:aws:iam::aws:policy/service-role/AWSBackupServiceRolePolicyForBackup"
+}
+
+resource "aws_iam_role_policy_attachment" "ec2_backup_restores" {
+  count         = var.backup_enabled ? var.instance_count : 0
+  role          = aws_iam_role.ec2_backup[count.index].name
+  policy_arn    = "arn:aws:iam::aws:policy/service-role/AWSBackupServiceRolePolicyForRestores"
+}
+
+resource "aws_backup_selection" "example" {
+  count         = var.backup_enabled ? var.instance_count : 0
+  iam_role_arn  = aws_iam_role.ec2_backup[count.index].arn
+  name          = format("%s-%s-backup-selection", var.name, count.index + 1)
+  plan_id       = aws_backup_plan.ec2[count.index].id
+
+  selection_tag {
+    type  = "STRINGEQUALS"
+    key   = var.backup_plan_tag_key
+    value = var.backup_plan_tag_value
   }
 }

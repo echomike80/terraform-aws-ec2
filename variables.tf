@@ -273,3 +273,45 @@ variable "cloudwatch_cpu_utilization_enabled" {
   type        = bool
   default     = false
 }
+
+variable "backup_enabled" {
+  description = "Enable or disable AWS Backup"
+  type        = bool
+  default     = false
+}
+
+variable "backup_tags" {
+  description = "A mapping of backup tags to assign to the resource"
+  type        = map(string)
+  default     = {}
+}
+
+variable "backup_vault_kms_key_arn" {
+  description = "AWS Backup vault KMS key arn"
+  type        = string
+  default     = null
+}
+
+variable "backup_plan_schedule" {
+  description = "AWS Backup plan schedule"
+  type        = string
+  default     = "cron(0 3 * * ? *)"
+}
+
+variable "backup_plan_windows_vss" {
+  description = "AWS Backup plan Windows VSS feature"
+  type        = string
+  default     = "disabled"
+}
+
+variable "backup_plan_tag_key" {
+  description = "AWS Backup selection tag key"
+  type        = string
+  default     = "Backup"
+}
+
+variable "backup_plan_tag_value" {
+  description = "AWS Backup selection tag value"
+  type        = string
+  default     = "enabled"
+}

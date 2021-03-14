@@ -6,7 +6,7 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 
 - feat: Add security groups, key pair, EIP associations and CloudWatch alarms
-
+- feat: Add backup
 
 <a name="v2.16.0"></a>
 ## [v2.16.0] - 2020-12-10

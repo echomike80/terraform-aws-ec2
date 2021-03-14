@@ -17,6 +17,15 @@ module "applicationserver" {
   vpc_id                            = var.vpc_id
   subnet_ids                        = var.subnet_ids
 
+  ami                               = var.app_ami
+  instance_count                    = var.app_instance_count
+  instance_type                     = var.app_instance_type
+  iam_instance_profile              = var.app_iam_instance_profile
+  ssh_pubkey                        = var.app_ssh_pubkey
+  root_block_device                 = var.app_root_block_device
+  ebs_block_device                  = var.app_ebs_block_device
+  sg_rule_rds_port                  = var.app_sg_rule_rds_port
+
   sg_rules_egress_cidr_map          = {
     internet_http = {
       port          = 80
@@ -40,18 +49,11 @@ module "applicationserver" {
     }
   }
 
-  ami                               = var.app_ami
-  instance_count                    = var.app_instance_count
-  instance_type                     = var.app_instance_type
-  iam_instance_profile              = var.app_iam_instance_profile
-  ssh_pubkey                        = var.app_ssh_pubkey
-  root_block_device                 = var.app_root_block_device
-  ebs_block_device                  = var.app_ebs_block_device
-  sg_rule_rds_port                  = var.app_sg_rule_rds_port
+  backup_enabled    = var.backup_enabled
+  backup_tags       = var.backup_tags
 
   tags = {
     Environment = var.environment,
-    Project     = var.project,
     Tier        = var.app_tier
   }
 }
@@ -97,6 +99,13 @@ Run `terraform apply` initially without defining an input value for `cloudwatch_
 |------|-------------|------|---------|:--------:|
 | ami | ID of AMI to use for the instance | `map` | n/a | yes |
 | associate\_public\_ip\_address | If true, the EC2 instance will have associated public IP address | `bool` | `null` | no |
+| backup\_enabled | Enable or disable AWS Backup | `bool` | `false` | no |
+| backup\_plan\_schedule | AWS Backup plan schedule | `string` | `"cron(0 3 * * ? *)"` | no |
+| backup\_plan\_tag\_key | AWS Backup selection tag key | `string` | `"Backup"` | no |
+| backup\_plan\_tag\_value | AWS Backup selection tag value | `string` | `"enabled"` | no |
+| backup\_plan\_windows\_vss | AWS Backup plan Windows VSS feature | `string` | `"disabled"` | no |
+| backup\_tags | A mapping of backup tags to assign to the resource | `map(string)` | `{}` | no |
+| backup\_vault\_kms\_key\_arn | AWS Backup vault KMS key arn | `string` | `null` | no |
 | cloudwatch\_autorecover\_enabled | Enable or disable CloudWatch alarm EC2 autorecover | `bool` | `true` | no |
 | cloudwatch\_cpu\_utilization\_enabled | Enable or disable CloudWatch alarm CPU utilization | `bool` | `false` | no |
 | cloudwatch\_sns\_topic\_arn | SNS Topic ARN for CloudWatch alarms | `string` | `null` | no |
