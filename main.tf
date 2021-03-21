@@ -1,3 +1,9 @@
+##############
+# Data sources
+##############
+data "aws_caller_identity" "current" {
+}
+
 ########
 # Locals
 ########
@@ -200,7 +206,6 @@ resource "aws_instance" "ec2" {
       "Name" = format("%s-%s", var.name, count.index + 1)
     },
     var.volume_tags,
-    var.backup_tags,
   )
 
   credit_specification {
@@ -293,6 +298,14 @@ resource "aws_backup_plan" "ec2" {
     rule_name         = format("%s-%s-backup-rule", var.name, count.index + 1)
     target_vault_name = aws_backup_vault.ec2[count.index].name
     schedule          = var.backup_plan_schedule
+
+    dynamic "lifecycle" {
+      for_each    = var.backup_plan_cold_storage_after != null || var.backup_plan_delete_after != null ? ["true"] : []
+      content {
+        cold_storage_after    = var.backup_plan_cold_storage_after
+        delete_after          = var.backup_plan_delete_after
+      }
+    }
   }
 
   advanced_backup_setting {
@@ -304,8 +317,8 @@ resource "aws_backup_plan" "ec2" {
 }
 
 resource "aws_iam_role" "ec2_backup" {
-  count                 = var.backup_enabled ? var.instance_count : 0
-  name                  = format("%s-ec2-role", var.name)
+  count                 = var.backup_enabled && var.backup_create_role ? 1 : 0
+  name                  = var.backup_role_name
 
   assume_role_policy    = <<EOF
 {
@@ -325,20 +338,20 @@ EOF
 }
 
 resource "aws_iam_role_policy_attachment" "ec2_backup_backup" {
-  count         = var.backup_enabled ? var.instance_count : 0
+  count         = var.backup_enabled && var.backup_create_role ? 1 : 0
   role          = aws_iam_role.ec2_backup[count.index].name
   policy_arn    = "arn:aws:iam::aws:policy/service-role/AWSBackupServiceRolePolicyForBackup"
 }
 
 resource "aws_iam_role_policy_attachment" "ec2_backup_restores" {
-  count         = var.backup_enabled ? var.instance_count : 0
+  count         = var.backup_enabled && var.backup_create_role ? 1 : 0
   role          = aws_iam_role.ec2_backup[count.index].name
   policy_arn    = "arn:aws:iam::aws:policy/service-role/AWSBackupServiceRolePolicyForRestores"
 }
 
-resource "aws_backup_selection" "example" {
+resource "aws_backup_selection" "ec2" {
   count         = var.backup_enabled ? var.instance_count : 0
-  iam_role_arn  = aws_iam_role.ec2_backup[count.index].arn
+  iam_role_arn  = "arn:aws:iam::${data.aws_caller_identity.current.account_id}:role/${var.backup_role_name}"
   name          = format("%s-%s-backup-selection", var.name, count.index + 1)
   plan_id       = aws_backup_plan.ec2[count.index].id
 

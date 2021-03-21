@@ -5,8 +5,13 @@ All notable changes to this project will be documented in this file.
 <a name="unreleased"></a>
 ## [Unreleased]
 
+
+<a name="v2.16.0"></a>
+## [v21.03.0] - 2021-03-21
+
 - feat: Add security groups, key pair, EIP associations and CloudWatch alarms
 - feat: Add backup
+- feat: Add backup_role_name and backup retention
 
 <a name="v2.16.0"></a>
 ## [v2.16.0] - 2020-12-10

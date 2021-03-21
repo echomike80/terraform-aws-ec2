@@ -280,6 +280,18 @@ variable "backup_enabled" {
   default     = false
 }
 
+variable "backup_create_role" {
+  description = "Create IAM role for AWS backup"
+  type        = bool
+  default     = false
+}
+
+variable "backup_role_name" {
+  description = "Name of the IAM role which will be created when backup_enabled is true and backup_create_role is true"
+  type        = string
+  default     = "ec2-backup-role"
+}
+
 variable "backup_tags" {
   description = "A mapping of backup tags to assign to the resource"
   type        = map(string)
@@ -296,6 +308,18 @@ variable "backup_plan_schedule" {
   description = "AWS Backup plan schedule"
   type        = string
   default     = "cron(0 3 * * ? *)"
+}
+
+variable "backup_plan_cold_storage_after" {
+  type        = number
+  description = "Specifies the number of days after creation that a recovery point is moved to cold storage"
+  default     = null
+}
+
+variable "backup_plan_delete_after" {
+  type        = number
+  description = "Specifies the number of days after creation that a recovery point is deleted. Must be 90 days greater than `cold_storage_after`"
+  default     = null
 }
 
 variable "backup_plan_windows_vss" {

@@ -49,8 +49,15 @@ module "applicationserver" {
     }
   }
 
-  backup_enabled    = var.backup_enabled
-  backup_tags       = var.backup_tags
+  backup_enabled            = var.backup_enabled[terraform.workspace]
+  backup_create_role        = var.backup_create_role[terraform.workspace]
+  backup_plan_delete_after  = var.backup_plan_delete_after[terraform.workspace]
+  backup_role_name          = var.backup_role_name
+  backup_plan_tag_key       = "Backup"
+  backup_plan_tag_value     = var.backup_plan_tag_value
+  backup_tags               = {
+    Backup = var.backup_plan_tag_value
+  }
 
   tags = {
     Environment = var.environment,
@@ -99,11 +106,15 @@ Run `terraform apply` initially without defining an input value for `cloudwatch_
 |------|-------------|------|---------|:--------:|
 | ami | ID of AMI to use for the instance | `map` | n/a | yes |
 | associate\_public\_ip\_address | If true, the EC2 instance will have associated public IP address | `bool` | `null` | no |
+| backup\_create\_role | Create IAM role for AWS backup | `bool` | `false` | no |
 | backup\_enabled | Enable or disable AWS Backup | `bool` | `false` | no |
+| backup\_plan\_cold\_storage\_after | Specifies the number of days after creation that a recovery point is moved to cold storage | `number` | `null` | no |
+| backup\_plan\_delete\_after | Specifies the number of days after creation that a recovery point is deleted. Must be 90 days greater than `cold_storage_after` | `number` | `null` | no |
 | backup\_plan\_schedule | AWS Backup plan schedule | `string` | `"cron(0 3 * * ? *)"` | no |
 | backup\_plan\_tag\_key | AWS Backup selection tag key | `string` | `"Backup"` | no |
 | backup\_plan\_tag\_value | AWS Backup selection tag value | `string` | `"enabled"` | no |
 | backup\_plan\_windows\_vss | AWS Backup plan Windows VSS feature | `string` | `"disabled"` | no |
+| backup\_role\_name | Name of the IAM role which will be created when backup\_enabled is true and backup\_create\_role is true | `string` | `"ec2-backup-role"` | no |
 | backup\_tags | A mapping of backup tags to assign to the resource | `map(string)` | `{}` | no |
 | backup\_vault\_kms\_key\_arn | AWS Backup vault KMS key arn | `string` | `null` | no |
 | cloudwatch\_autorecover\_enabled | Enable or disable CloudWatch alarm EC2 autorecover | `bool` | `true` | no |
