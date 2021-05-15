@@ -111,7 +111,7 @@ resource "aws_key_pair" "ec2" {
 # EC2 instances
 ###############
 resource "aws_instance" "ec2" {
-  count                       = var.instance_count
+  count            = var.instance_count
 
   ami              = lookup(var.ami, var.region)
   instance_type    = var.instance_type
